@@ -336,7 +336,7 @@
                                     x-init="autoExpand($el); $watch('item.detail', () => autoExpand($el))" 
                                     @input="autoExpand($el)"
                                     
-                                    placeholder="Detail Tindak Lanjut... Gunakan **bold**, *italic*, __underline__, - list, dan ==highlight==" 
+                                    placeholder="Detail Tindak Lanjut... Gunakan **bold**, *italic*, __underline__, dan ==highlight==" 
                                     class="w-full border p-1 text-sm rounded mb-1 overflow-hidden"
                                     style="min-height: 4rem; height: 4rem;" 
                                     
@@ -673,13 +673,7 @@
             Highlight (==)
         </button>
         
-        <div class="py-1 px-3 text-xs font-bold text-gray-500 border-t mt-1 mb-1">List</div>
-
-        <button @click="applyFormat('list'); showContextMenu = false;" 
-                class="block w-full text-left px-3 py-1 hover:bg-gray-100">
-            Bullet List (- )
-        </button>
-    </div>
+        </div>
 
     <script>
         function appData() {
@@ -714,7 +708,7 @@
                     agenda: 'Ngopling (Ngopi Keliling)'
                 },
                 items: [
-                    { topic: 'Pemasangan lampu penerangan', detail: 'Detail Pekerjaan:\nKebutuhan lampu: 4 titik\nLokasi: Depan Mas Tommy, Zulfy, Andy, P. Sapto\n\n*Penting: Segera dilaksanakan.*', pic: 'Hanif', due: new Date().toISOString().split('T')[0] }
+                    { topic: 'Pemasangan lampu penerangan', detail: 'Detail Pekerjaan:\nKebutuhan lampu: 4 titik\nLokasi: Depan Mas Tommy, Zulfy, Andy, P. Sapto\n\nPenting: Segera dilaksanakan.', pic: 'Hanif', due: new Date().toISOString().split('T')[0] }
                 ],
                 attendees: [
                     { name: 'Hendra', address: 'C01' },
@@ -772,37 +766,18 @@
                     const end = textarea.selectionEnd;
                     const currentValue = textarea.value;
                     
-                    let newValue;
+                    const marker = syntax;
+                    const selectedText = currentValue.substring(start, end);
                     
-                    if (syntax === 'list') {
-                        const prefix = '- ';
-                        const lineStart = currentValue.lastIndexOf('\n', start - 1) + 1;
-                        const selectedText = currentValue.substring(lineStart, end);
-                        
-                        const formattedText = prefix + selectedText.replace(/\n/g, `\n${prefix}`);
-                        
-                        newValue = currentValue.substring(0, lineStart) 
+                    const formattedText = marker + selectedText + marker;
+                    
+                    const newValue = currentValue.substring(0, start) 
                                    + formattedText 
                                    + currentValue.substring(end);
                                    
-                        textarea.value = newValue;
-                        textarea.selectionStart = lineStart + formattedText.length;
-                        textarea.selectionEnd = lineStart + formattedText.length;
-                        
-                    } else {
-                        const marker = syntax;
-                        const selectedText = currentValue.substring(start, end);
-                        
-                        const formattedText = marker + selectedText + marker;
-                        
-                        newValue = currentValue.substring(0, start) 
-                                   + formattedText 
-                                   + currentValue.substring(end);
-                                   
-                        textarea.value = newValue;
-                        textarea.selectionStart = start + marker.length;
-                        textarea.selectionEnd = end + marker.length; 
-                    }
+                    textarea.value = newValue;
+                    textarea.selectionStart = start + marker.length;
+                    textarea.selectionEnd = end + marker.length; 
                     
                     // Trigger update Alpine.js dan auto-expand
                     textarea.dispatchEvent(new Event('input')); 
@@ -823,35 +798,7 @@
                     html = html.replace(/__(.*?)__/gs, '<u>$1</u>');
                     html = html.replace(/==(.*?)\=\=/gs, '<span style="background-color: #fff3c4; padding: 1px 0;">$1</span>');
                     
-                    const lines = html.split('\n');
-                    let inList = false;
-                    let processedLines = [];
-                    
-                    lines.forEach(line => {
-                        const trimmedLine = line.trim();
-                        
-                        if (trimmedLine.match(/^[*-]\s/)) {
-                            const itemContent = trimmedLine.substring(trimmedLine.indexOf(' ') + 1);
-                            
-                            if (!inList) {
-                                processedLines.push('<ul>');
-                                inList = true;
-                            }
-                            processedLines.push(`<li>${itemContent}</li>`);
-                        } else {
-                            if (inList) {
-                                processedLines.push('</ul>');
-                                inList = false;
-                            }
-                            processedLines.push(line);
-                        }
-                    });
-                    
-                    if (inList) {
-                        processedLines.push('</ul>');
-                    }
-                    
-                    html = processedLines.join('\n');
+                    // Hanya konversi line break menjadi <br>, tanpa memproses list
                     html = html.replace(/\n/g, '<br>');
                     
                     return html;
