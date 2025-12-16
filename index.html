@@ -56,6 +56,30 @@
             font-size: 9pt;
         }
 
+        /* Styling Markdown/HTML di Preview */
+        .doc-table td ul, .doc-table td ol {
+            padding-left: 20px;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+        .doc-table td ul {
+            list-style-type: disc;
+        }
+        .doc-table td ol {
+            list-style-type: decimal;
+        }
+        .doc-table td li {
+            margin-bottom: 2px;
+        }
+        .doc-table td br {
+            line-height: 1.5; /* Memberi sedikit jarak antar baris */
+        }
+        /* Style untuk highlight (sesuai syntax ==highlight==) */
+        .doc-table td span[style*="background-color: #fff3c4"] {
+             background-color: #fff3c4; 
+        }
+        
+
         /* Styling elemen lainnya tetap sama */
         .header-container {
             display: grid;
@@ -307,12 +331,18 @@
                                 
                                 <textarea 
                                     x-model="item.detail" 
-                                    x-ref="detailInput"
-                                    x-init="$watch('item.detail', value => { $refs.detailInput.style.height = 'auto'; $refs.detailInput.style.height = $refs.detailInput.scrollHeight + 'px' })"
-                                    @input="$refs.detailInput.style.height = 'auto'; $refs.detailInput.style.height = $refs.detailInput.scrollHeight + 'px'"
-                                    placeholder="Detail Tindak Lanjut..." 
+                                    
+                                    x-init="autoExpand($el); $watch('item.detail', () => autoExpand($el))" 
+                                    @input="autoExpand($el)"
+                                    
+                                    placeholder="Detail Tindak Lanjut... Gunakan **bold**, *italic*, __underline__, - list, dan ==highlight==" 
                                     class="w-full border p-1 text-sm rounded mb-1 overflow-hidden"
                                     style="min-height: 4rem; height: 4rem;" 
+                                    
+                                    @contextmenu.prevent="showCustomContextMenu($event)"
+                                    @touchstart="startLongPress($event)" 
+                                    @touchend="cancelLongPress()"
+                                    @touchmove="cancelLongPress()"
                                 ></textarea>
 
                                 <div class="flex gap-2">
@@ -429,7 +459,7 @@
                                 <tr>
                                     <td class="text-center" x-text="i + 1"></td>
                                     <td class="font-bold" x-text="item.topic"></td>
-                                    <td style="white-space: pre-wrap;" x-text="item.detail"></td>
+                                    <td x-html="renderMarkdown(item.detail)"></td>
                                     <td class="text-center" x-text="item.pic"></td>
                                     <td class="text-center" x-text="formatDate(item.due)"></td>
                                 </tr>
@@ -578,6 +608,24 @@
             </div>
         </div>
         
+        <div class="resizer hidden lg:block" x-on:mousedown="startResize($event)" x-ref="resizer"></div>
+
+        <div class="content-preview bg-gray-700 flex justify-center relative"
+             x-ref="previewContainer"
+             :class="{ 'hidden-mobile': activeTab !== 'preview' && window.innerWidth < 1024 }">
+            
+            <div class="zoom-controls hidden space-x-2 p-2 bg-gray-900/90 rounded-b-lg shadow-xl absolute top-0 z-30 justify-center">
+                </div>
+
+            <div id="pdf-content" 
+                 :style="window.innerWidth >= 1024 ? 
+                     `transform: scale(${zoomLevel}); margin-top: ${0 / zoomLevel}px; margin-bottom: ${0 / zoomLevel}px;` : 
+                     `transform: scale(${zoomLevel});`"
+                 class="py-4">
+                
+                </div>
+        </div>
+        
         <div class="bottom-bar bg-white border-t border-gray-300 shadow-2xl flex justify-around items-center">
             
             <button @click="activeTab = 'input'" 
@@ -597,12 +645,47 @@
         </div>
     </div>
 
+    <div x-cloak x-show="showContextMenu" 
+         @click.away="showContextMenu = false"
+         :style="`top: ${contextMenuY}px; left: ${contextMenuX}px;`"
+         class="fixed bg-white border border-gray-300 rounded shadow-lg p-1 z-50 text-sm">
+        
+        <div class="py-1 px-3 text-xs font-bold text-gray-500 border-b mb-1">Format Teks</div>
+        
+        <button @click="applyFormat('**'); showContextMenu = false;" 
+                class="block w-full text-left px-3 py-1 hover:bg-gray-100 font-bold">
+            Tebal (**)
+        </button>
+        
+        <button @click="applyFormat('*'); showContextMenu = false;" 
+                class="block w-full text-left px-3 py-1 hover:bg-gray-100 italic">
+            Miring (*)
+        </button>
+        
+        <button @click="applyFormat('__'); showContextMenu = false;" 
+                class="block w-full text-left px-3 py-1 hover:bg-gray-100 underline">
+            Garis Bawah (__)
+        </button>
+
+        <button @click="applyFormat('=='); showContextMenu = false;" 
+                class="block w-full text-left px-3 py-1 hover:bg-yellow-50 bg-yellow-100/50 text-gray-800">
+            Highlight (==)
+        </button>
+        
+        <div class="py-1 px-3 text-xs font-bold text-gray-500 border-t mt-1 mb-1">List</div>
+
+        <button @click="applyFormat('list'); showContextMenu = false;" 
+                class="block w-full text-left px-3 py-1 hover:bg-gray-100">
+            Bullet List (- )
+        </button>
+    </div>
+
     <script>
         function appData() {
             return {
                 activeTab: window.innerWidth < 1024 ? 'input' : 'input', 
                 
-                // State untuk Zoom (Logika ini tetap dipertahankan)
+                // State untuk Zoom 
                 zoomLevel: 1.0, 
                 A4_WIDTH_PX: 794, 
                 
@@ -610,6 +693,13 @@
                 isResizing: false,
                 startWidth: 380, 
                 startX: 0, 
+
+                // --- CONTEXT MENU STATE ---
+                showContextMenu: false,
+                contextMenuX: 0,
+                contextMenuY: 0,
+                activeTextarea: null, 
+                longPressTimer: null,
 
                 doc: {
                     no: 'F-AGV-01',
@@ -623,7 +713,7 @@
                     agenda: 'Ngopling (Ngopi Keliling)'
                 },
                 items: [
-                    { topic: 'Pemasangan lampu penerangan', detail: '1. Kebutuhan lampu: 4 titik\n2. Lokasi: Depan Mas Tommy, Zulfy, Andy, P. Sapto', pic: 'Hanif', due: new Date().toISOString().split('T')[0] }
+                    { topic: 'Pemasangan lampu penerangan', detail: '**Detail Pekerjaan:**\n- Kebutuhan lampu: ==4 titik==\n- Lokasi: Depan Mas Tommy, Zulfy, Andy, P. Sapto\n\n*Penting: Segera dilaksanakan.*', pic: 'Hanif', due: new Date().toISOString().split('T')[0] }
                 ],
                 attendees: [
                     { name: 'Hendra', address: 'C01' },
@@ -634,37 +724,159 @@
                     notulis_nama: 'Budi',
                     notulis_jabatan: 'Sekretaris'
                 },
+                
+                // --- NEW AUTOSIZE FUNCTION ---
+                autoExpand(element) {
+                    if (element) {
+                        element.style.height = 'auto'; 
+                        element.style.height = element.scrollHeight + 'px';
+                    }
+                },
+
+                // --- CONTEXT MENU FUNCTIONS ---
+                showCustomContextMenu(event) {
+                    this.contextMenuX = event.clientX;
+                    this.contextMenuY = event.clientY;
+                    this.activeTextarea = event.target;
+                    this.showContextMenu = true;
+                },
+
+                startLongPress(event) {
+                    if (!event.touches || event.touches.length !== 1) return;
+
+                    clearTimeout(this.longPressTimer);
+                    
+                    this.activeTextarea = event.target;
+                    
+                    this.longPressTimer = setTimeout(() => {
+                        
+                        // Panggil preventDefault HANYA JIKA long press sukses
+                        event.preventDefault(); 
+                        
+                        this.contextMenuX = event.touches[0].clientX;
+                        this.contextMenuY = event.touches[0].clientY;
+                        this.showContextMenu = true;
+                    }, 700);
+                },
+
+                cancelLongPress() {
+                    clearTimeout(this.longPressTimer);
+                },
+
+                applyFormat(syntax) {
+                    if (!this.activeTextarea) return;
+                    
+                    const textarea = this.activeTextarea;
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    const currentValue = textarea.value;
+                    
+                    let newValue;
+                    
+                    if (syntax === 'list') {
+                        const prefix = '- ';
+                        const lineStart = currentValue.lastIndexOf('\n', start - 1) + 1;
+                        const selectedText = currentValue.substring(lineStart, end);
+                        
+                        const formattedText = prefix + selectedText.replace(/\n/g, `\n${prefix}`);
+                        
+                        newValue = currentValue.substring(0, lineStart) 
+                                   + formattedText 
+                                   + currentValue.substring(end);
+                                   
+                        textarea.value = newValue;
+                        textarea.selectionStart = lineStart + formattedText.length;
+                        textarea.selectionEnd = lineStart + formattedText.length;
+                        
+                    } else {
+                        const marker = syntax;
+                        const selectedText = currentValue.substring(start, end);
+                        
+                        const formattedText = marker + selectedText + marker;
+                        
+                        newValue = currentValue.substring(0, start) 
+                                   + formattedText 
+                                   + currentValue.substring(end);
+                                   
+                        textarea.value = newValue;
+                        textarea.selectionStart = start + marker.length;
+                        textarea.selectionEnd = end + marker.length; 
+                    }
+                    
+                    // Trigger update Alpine.js dan auto-expand
+                    textarea.dispatchEvent(new Event('input')); 
+                    
+                    // Panggil autoExpand secara eksplisit setelah update konten
+                    this.autoExpand(textarea); 
+                    
+                    this.showContextMenu = false;
+                },
+                
+                // --- MARKDOWN RENDER FUNCTION ---
+                renderMarkdown(markdownText) {
+                    if (!markdownText) return '';
+                    let html = markdownText;
+
+                    html = html.replace(/\*\*(.*?)\*\*/gs, '<b>$1</b>');
+                    html = html.replace(/\*(.*?)\*/gs, '<i>$1</i>');
+                    html = html.replace(/__(.*?)__/gs, '<u>$1</u>');
+                    html = html.replace(/==(.*?)\=\=/gs, '<span style="background-color: #fff3c4; padding: 1px 0;">$1</span>');
+                    
+                    const lines = html.split('\n');
+                    let inList = false;
+                    let processedLines = [];
+                    
+                    lines.forEach(line => {
+                        const trimmedLine = line.trim();
+                        
+                        if (trimmedLine.match(/^[*-]\s/)) {
+                            const itemContent = trimmedLine.substring(trimmedLine.indexOf(' ') + 1);
+                            
+                            if (!inList) {
+                                processedLines.push('<ul>');
+                                inList = true;
+                            }
+                            processedLines.push(`<li>${itemContent}</li>`);
+                        } else {
+                            if (inList) {
+                                processedLines.push('</ul>');
+                                inList = false;
+                            }
+                            processedLines.push(line);
+                        }
+                    });
+                    
+                    if (inList) {
+                        processedLines.push('</ul>');
+                    }
+                    
+                    html = processedLines.join('\n');
+                    html = html.replace(/\n/g, '<br>');
+                    
+                    return html;
+                },
+                // --- END MARKDOWN RENDER FUNCTION ---
 
                 // --- Zoom Logic ---
-
-                // Hitung skala optimal.
                 fitToScreen() {
                     const isDesktop = window.innerWidth >= 1024;
                     
                     if (isDesktop) {
-                        // Desktop: Fit-to-Width ke Container Preview
                         const containerWidth = this.$refs.previewContainer.clientWidth;
-                        const availableWidth = containerWidth - 32; // 1rem padding on both sides
-                        
+                        const availableWidth = containerWidth - 32; 
                         let scale = availableWidth / this.A4_WIDTH_PX;
-                        scale = Math.max(0.5, scale); // Min zoom 50%
+                        scale = Math.max(0.5, scale); 
                         this.zoomLevel = Math.round(scale * 100) / 100;
                         localStorage.setItem('agv_zoom_level', this.zoomLevel);
                     } else {
-                        // Mobile: Optimized Fit-to-Width ke Lebar Layar
                         const screenWidth = window.innerWidth;
-                        // content-preview memiliki padding 1rem (16px) di kiri/kanan. 
                         const availableWidth = screenWidth - 32; 
-                        
                         let scale = availableWidth / this.A4_WIDTH_PX;
                         scale = Math.round(scale * 100) / 100;
-                        
-                        // Atur skala, minimum 0.5 (50%)
                         this.zoomLevel = Math.max(0.5, scale); 
                     }
                 },
 
-                // Fungsi untuk menambah/mengurangi zoom (hanya digunakan untuk kontrol zoom manual, meskipun tombolnya hilang)
                 adjustZoom(delta) {
                     let newZoom = this.zoomLevel + delta;
                     
@@ -675,9 +887,7 @@
                     localStorage.setItem('agv_zoom_level', this.zoomLevel);
                 },
                 
-                // Menangani resize window untuk update zoom 
                 handleResize() {
-                    // Panggil fitToScreen untuk semua ukuran untuk memastikan tampilan optimal
                     this.fitToScreen(); 
                 },
 
@@ -728,9 +938,18 @@
                     });
                 },
 
-                // --- Core Operations (Tetap Sama) ---
+                // --- Core Operations ---
 
-                addItem() { this.items.push({ topic: '', detail: '', pic: '', due: new Date().toISOString().split('T')[0] }); },
+                addItem() { 
+                    this.items.push({ topic: '', detail: '', pic: '', due: new Date().toISOString().split('T')[0] }); 
+                    
+                    // Panggil autoExpand setelah DOM diperbarui
+                    this.$nextTick(() => {
+                        // Cari textarea yang baru dibuat (yang terakhir) dan jalankan autoExpand
+                        const lastTextarea = this.$el.querySelector('.sidebar-input textarea:last-of-type');
+                        this.autoExpand(lastTextarea);
+                    });
+                },
                 removeItem(i) { this.items.splice(i, 1); },
                 addAttendee() { this.attendees.push({ name: '', address: '' }); },
                 removeAttendee(i) { this.attendees.splice(i, 1); },
@@ -752,7 +971,7 @@
                 },
                 removePhoto(i) { this.photos.splice(i, 1); },
 
-                // --- Resizer Logic (Tetap Sama) ---
+                // --- Resizer Logic ---
                 startResize(e) {
                     if (window.innerWidth < 1024) return; 
 
@@ -809,9 +1028,9 @@
                     if(saved) {
                         const p = JSON.parse(saved);
                         this.doc = p.doc || this.doc;
-                        this.meet = p.meet || this.meet;
+                        this.meet = p.meet || p.meet;
                         this.items = p.items || this.items;
-                        this.attendees = p.attendees || this.attendees;
+                        this.attendees = p.attendees || p.attendees;
                         this.signer = p.signer || this.signer;
                         this.photos = p.photos || [];
                     }
@@ -829,11 +1048,14 @@
                          this.zoomLevel = parseFloat(savedZoom);
                     } 
                     
-                    // Panggil fitToScreen untuk mengatur zoom awal yang optimal (Fit-to-Width)
-                    this.$nextTick(() => this.fitToScreen()); 
+                    this.$nextTick(() => {
+                        this.fitToScreen(); 
+                        // Pastikan auto-expand dipanggil pada semua textarea saat inisialisasi
+                        this.$el.querySelectorAll('.sidebar-input textarea').forEach(this.autoExpand);
+                    });
 
 
-                    // Event Listener Global untuk Resizer
+                    // Event Listener Global untuk Resizer dan Context Menu
                     window.addEventListener('mousemove', (e) => this.onResize(e));
                     window.addEventListener('mouseup', () => this.stopResize());
                     
@@ -876,7 +1098,7 @@
                             this.doc = importedData.doc || this.doc;
                             this.meet = importedData.meet || this.meet;
                             this.items = importedData.items || this.items;
-                            this.attendees = importedData.attendees || this.attendees;
+                            this.attendees = importedData.attendees || importedData.attendees;
                             this.signer = importedData.signer || this.signer;
                             this.photos = importedData.photos || [];
 
