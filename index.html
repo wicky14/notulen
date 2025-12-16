@@ -59,13 +59,17 @@
             align-items: center;
         }
 
-        /* Menggunakan Teks/Icon untuk Logo (sesuai permintaan) */
-        .header-logo-text {
-            font-weight: bold;
-            font-size: 9pt;
-            line-height: 1.2;
+        /* Menggunakan Gambar untuk Logo */
+        .header-logo-container {
             text-align: left;
+            padding-right: 5px; 
         }
+        .header-logo-container img {
+            max-height: 50px; 
+            width: auto;
+            display: block;
+        }
+
         .header-center {
             text-align: center;
         }
@@ -82,7 +86,11 @@
             border: none;
             padding: 1px 2px;
         }
-        .header-meta tr td:first-child { font-weight: bold; width: 60px; }
+        .header-meta tr td:first-child { 
+            font-weight: bold; 
+            width: 60px; 
+            white-space: nowrap; /* Mencegah line wrap pada label */
+        }
 
         /* Kotak Info Rapat */
         .info-section {
@@ -112,6 +120,51 @@
 
         /* Utilitas Tampilan */
         [x-cloak] { display: none !important; }
+
+        /* --- CSS PRINT (Cetak ke PDF/Printer) --- */
+        @media print {
+            /* Sembunyikan panel sidebar/input */
+            .flex > .w-full:first-child { 
+                display: none; 
+            }
+            /* Pastikan konten cetak mengambil seluruh lebar */
+            .flex > .w-full:last-child {
+                width: 100%;
+                max-width: none;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+                overflow: visible !important;
+            }
+            /* Hapus background dan shadow dari halaman pratinjau A4 */
+            .a4-page {
+                box-shadow: none !important;
+                margin: 0 !important;
+                padding: 10mm 15mm !important;
+                min-height: auto !important;
+                page-break-after: always;
+            }
+            /* Sembunyikan scrollbar di body saat print */
+            body {
+                overflow: visible !important;
+                background: white !important;
+            }
+            
+            /* [PENTING] Penyesuaian gambar agar tercetak */
+            .a4-page img {
+                max-width: 100% !important;
+                height: auto !important;
+                display: block !important;
+                object-fit: initial !important; 
+            }
+
+            /* Menghilangkan header/footer bawaan browser. 
+               Penting: Pengguna mungkin masih perlu mematikan secara manual di dialog Print. */
+            @page {
+                size: A4;
+                margin: 0; 
+            }
+        }
     </style>
 </head>
 
@@ -132,8 +185,8 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
                     </button>
                     
-                    <button @click="generatePDF" class="bg-red-600 hover:bg-red-500 text-white p-2 rounded shadow transition" title="Download PDF">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    <button @click="generatePDF" class="bg-red-600 hover:bg-red-500 text-white p-2 rounded shadow transition" title="Print to PDF (Save as PDF)">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2z" /></svg>
                     </button>
                 </div>
             </div>
@@ -198,7 +251,8 @@
 
                 <div class="bg-white p-3 rounded shadow-sm border border-gray-200">
                     <h3 class="font-bold text-gray-700 text-sm mb-2">Dokumentasi</h3>
-                    <input type="file" multiple @change="handlePhotos" class="text-xs w-full mb-2">
+                    <input type="file" multiple @change="handlePhotos" class="text-xs w-full mb-2" accept="image/*">
+                    <p class="text-xs text-gray-500 mb-2">Foto akan di kompres otomatis saat diunggah untuk menghindari kegagalan Print ke PDF.</p>
                     <div class="grid grid-cols-3 gap-2">
                         <template x-for="(photo, idx) in photos" :key="idx">
                             <div class="relative group aspect-square">
@@ -232,8 +286,8 @@
                 
                 <div class="a4-page">
                     <div class="header-container">
-                        <div class="header-logo-text">
-                            HARGA AHSAN<br>GREEN VILLAGE
+                        <div class="header-logo-container">
+                            <img src="https://raw.githubusercontent.com/wicky14/notulen/main/AGV%20Logo.png" alt="Logo Paguyuban Ahsana Green Village">
                         </div>
                         <div class="header-center">
                             <h1>PAGUYUBAN AHSANA GREEN VILLAGE</h1>
@@ -300,8 +354,8 @@
 
                 <div class="a4-page">
                     <div class="header-container">
-                        <div class="header-logo-text">
-                            HARGA AHSAN<br>GREEN VILLAGE
+                        <div class="header-logo-container">
+                            <img src="https://raw.githubusercontent.com/wicky14/notulen/main/AGV%20Logo.png" alt="Logo Paguyuban Ahsana Green Village">
                         </div>
                         <div class="header-center">
                             <h1>PAGUYUBAN AHSANA GREEN VILLAGE</h1>
@@ -365,8 +419,8 @@
 
                 <div class="a4-page">
                     <div class="header-container">
-                        <div class="header-logo-text">
-                            HARGA AHSAN<br>GREEN VILLAGE
+                        <div class="header-logo-container">
+                            <img src="https://raw.githubusercontent.com/wicky14/notulen/main/AGV%20Logo.png" alt="Logo Paguyuban Ahsana Green Village">
                         </div>
                         <div class="header-center">
                             <h1>PAGUYUBAN AHSANA GREEN VILLAGE</h1>
@@ -425,14 +479,12 @@
     <script>
         function appData() {
             return {
-                // Logo dihilangkan karena permintaan. Diganti teks.
                 doc: {
                     no: 'F-AGV-01',
                     tgl: '25 Februari 2024',
                     rev: '00'
                 },
                 meet: {
-                    // Default date: YYYY-MM-DD untuk type="date"
                     date: new Date().toISOString().split('T')[0], 
                     time: '20.00-22.00',
                     place: 'Bagus (C02)',
@@ -453,14 +505,53 @@
 
                 // --- Utility Functions ---
 
-                // Format tanggal dari YYYY-MM-DD menjadi DD/MM/YYYY
                 formatDate(dateString) {
                     if (!dateString) return '';
                     const parts = dateString.split('-');
                     if (parts.length === 3) {
                         return `${parts[2]}/${parts[1]}/${parts[0]}`;
                     }
-                    return dateString; // Fallback
+                    return dateString;
+                },
+
+                // Fungsi untuk mengompres dan downscale gambar menggunakan Canvas sebelum disimpan
+                compressImage(file) {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            const img = new Image();
+                            img.onload = () => {
+                                const canvas = document.createElement('canvas');
+                                let width = img.width;
+                                let height = img.height;
+                                const maxDim = 1200; // Maksimum dimensi gambar
+
+                                // Downscale jika gambar terlalu besar dari 1200px (baik lebar/tinggi)
+                                if (width > maxDim || height > maxDim) {
+                                    if (width > height) {
+                                        height *= maxDim / width;
+                                        width = maxDim;
+                                    } else {
+                                        width *= maxDim / height;
+                                        height = maxDim;
+                                    }
+                                }
+                                
+                                canvas.width = width;
+                                canvas.height = height;
+                                const ctx = canvas.getContext('2d');
+                                ctx.drawImage(img, 0, 0, width, height);
+
+                                // Konversi kembali ke base64 dengan kualitas JPEG 70%
+                                // Ini secara signifikan mengurangi ukuran data string base64.
+                                const dataUrl = canvas.toDataURL('image/jpeg', 0.7); 
+                                resolve(dataUrl);
+                            };
+                            img.onerror = reject;
+                            img.src = event.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    });
                 },
 
                 // --- Core Operations ---
@@ -470,20 +561,29 @@
                 addAttendee() { this.attendees.push({ name: '', address: '' }); },
                 removeAttendee(i) { this.attendees.splice(i, 1); },
 
-                handlePhotos(e) {
+                // Fungsi handlePhotos yang menggunakan fungsi kompresi baru (ASYNC)
+                async handlePhotos(e) {
                     const files = e.target.files;
                     if(!files) return;
+                    
+                    // Anda bisa menambahkan indikator loading di sini
+                    
                     for(let i=0; i<files.length; i++){
-                        const reader = new FileReader();
-                        reader.onload = (ev) => this.photos.push(ev.target.result);
-                        reader.readAsDataURL(files[i]);
+                        try {
+                            const compressedUrl = await this.compressImage(files[i]); 
+                            this.photos.push(compressedUrl);
+                        } catch (error) {
+                            console.error("Gagal memproses foto:", error);
+                            alert("Gagal memproses salah satu foto.");
+                        }
                     }
+                    // Hapus file input agar bisa upload lagi
+                    e.target.value = ''; 
                 },
                 removePhoto(i) { this.photos.splice(i, 1); },
 
                 // --- Storage/Draft/Import/Export ---
 
-                // Menyimpan data ke LocalStorage (seperti draft)
                 saveDraft() {
                     const data = {
                         doc: this.doc, meet: this.meet, items: this.items, attendees: this.attendees, signer: this.signer, photos: this.photos
@@ -497,7 +597,6 @@
                     }
                 },
                 
-                // Memuat data dari LocalStorage saat inisialisasi
                 initData() {
                     const saved = localStorage.getItem('agv_v3_draft');
                     if(saved) {
@@ -507,13 +606,12 @@
                         this.items = p.items || this.items;
                         this.attendees = p.attendees || this.attendees;
                         this.signer = p.signer || this.signer;
-                        this.photos = p.photos || []; // Load foto juga
+                        this.photos = p.photos || [];
                     }
                 },
                 
-                // Export Data (Menggantikan Simpan Draft ke LocalStorage)
                 exportData() {
-                    this.saveDraft(); // Simpan ke local storage dulu (draft)
+                    this.saveDraft(); 
 
                     const dataToExport = {
                         doc: this.doc, meet: this.meet, items: this.items, attendees: this.attendees, signer: this.signer, photos: this.photos
@@ -534,7 +632,6 @@
                     alert('Data telah diexport sebagai file JSON.');
                 },
 
-                // Import Data
                 importData(event) {
                     const file = event.target.files[0];
                     if (!file) return;
@@ -543,7 +640,6 @@
                     reader.onload = (e) => {
                         try {
                             const importedData = JSON.parse(e.target.result);
-                            // Load data ke state Alpine
                             this.doc = importedData.doc || this.doc;
                             this.meet = importedData.meet || this.meet;
                             this.items = importedData.items || this.items;
@@ -551,7 +647,6 @@
                             this.signer = importedData.signer || this.signer;
                             this.photos = importedData.photos || [];
 
-                            // Simpan ke local storage setelah import
                             this.saveDraft(); 
                             alert('Data berhasil diimport dan disimpan sebagai draft.');
                         } catch (error) {
@@ -562,27 +657,17 @@
                     reader.readAsText(file);
                 },
 
-                // Generate PDF
+                // Generate PDF / Print (MENGGUNAKAN WINDOW.PRINT())
                 generatePDF() {
-                    const element = document.getElementById('pdf-content');
-                    const opt = {
-                        margin:       0,
-                        filename:     `Notulen_AGV_${this.meet.date.replace(/-/g,'-')}.pdf`,
-                        image:        { type: 'jpeg', quality: 0.98 },
-                        html2canvas:  { scale: 2, useCORS: true },
-                        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                    };
-                    
                     const btn = event.target.closest('button');
                     const originalIcon = btn.innerHTML;
+                    
                     btn.innerHTML = '<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
                     
-                    html2pdf().set(opt).from(element).save().then(() => {
-                        btn.innerHTML = originalIcon;
-                    }).catch(error => {
-                        alert("Gagal membuat PDF: " + error);
-                        btn.innerHTML = originalIcon;
-                    });
+                    setTimeout(() => {
+                        window.print();
+                        btn.innerHTML = originalIcon; 
+                    }, 50); 
                 }
             }
         }
