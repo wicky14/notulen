@@ -413,9 +413,7 @@
                 </div>
 
             <div id="pdf-content" 
-                 :style="window.innerWidth >= 1024 ? 
-                     `transform: scale(${zoomLevel}); margin-top: ${0 / zoomLevel}px; margin-bottom: ${0 / zoomLevel}px;` : 
-                     `transform: scale(${zoomLevel});`"
+                 :style="`transform: scale(${zoomLevel});`" 
                  class="py-4">
                 
                 <div class="a4-page">
@@ -609,24 +607,6 @@
             </div>
         </div>
         
-        <div class="resizer hidden lg:block" x-on:mousedown="startResize($event)" x-ref="resizer"></div>
-
-        <div class="content-preview bg-gray-700 flex justify-center relative"
-             x-ref="previewContainer"
-             :class="{ 'hidden-mobile': activeTab !== 'preview' && window.innerWidth < 1024 }">
-            
-            <div class="zoom-controls hidden space-x-2 p-2 bg-gray-900/90 rounded-b-lg shadow-xl absolute top-0 z-30 justify-center">
-                </div>
-
-            <div id="pdf-content" 
-                 :style="window.innerWidth >= 1024 ? 
-                     `transform: scale(${zoomLevel}); margin-top: ${0 / zoomLevel}px; margin-bottom: ${0 / zoomLevel}px;` : 
-                     `transform: scale(${zoomLevel});`"
-                 class="py-4">
-                
-                </div>
-        </div>
-        
         <div class="bottom-bar bg-white border-t border-gray-300 shadow-2xl flex justify-around items-center">
             
             <button @click="activeTab = 'input'" 
@@ -805,24 +785,35 @@
                 },
                 // --- END MARKDOWN RENDER FUNCTION ---
 
-                // --- Zoom Logic ---
+                // --- Zoom Logic (Dioptimalkan) ---
                 fitToScreen() {
-                    const isDesktop = window.innerWidth >= 1024;
-                    
-                    if (isDesktop) {
-                        const containerWidth = this.$refs.previewContainer.clientWidth;
-                        const availableWidth = containerWidth - 32; 
+                    this.$nextTick(() => {
+                        const isDesktop = window.innerWidth >= 1024;
+                        let containerWidth = this.$refs.previewContainer.clientWidth;
+                        
+                        // Padding container adalah 1rem (16px) di kiri dan kanan, total 32px
+                        const padding = 32; 
+                        let availableWidth = containerWidth - padding; 
+                        
+                        // Jika dalam mode mobile dan tab input aktif, lebar tersedia adalah lebar layar penuh dikurangi padding
+                        if (!isDesktop && this.activeTab === 'input') {
+                            availableWidth = window.innerWidth - padding;
+                        }
+                        
+                        // Perhitungan scale
                         let scale = availableWidth / this.A4_WIDTH_PX;
+                        
+                        // Batasi scale agar tidak terlalu kecil (misalnya 50%)
                         scale = Math.max(0.5, scale); 
+                        
+                        // Bulatkan ke 2 desimal
                         this.zoomLevel = Math.round(scale * 100) / 100;
-                        localStorage.setItem('agv_zoom_level', this.zoomLevel);
-                    } else {
-                        const screenWidth = window.innerWidth;
-                        const availableWidth = screenWidth - 32; 
-                        let scale = availableWidth / this.A4_WIDTH_PX;
-                        scale = Math.round(scale * 100) / 100;
-                        this.zoomLevel = Math.max(0.5, scale); 
-                    }
+                        
+                        // Simpan di Local Storage jika di Desktop
+                        if (isDesktop) {
+                            localStorage.setItem('agv_zoom_level', this.zoomLevel);
+                        }
+                    });
                 },
 
                 adjustZoom(delta) {
@@ -836,6 +827,7 @@
                 },
                 
                 handleResize() {
+                    // Panggil fitToScreen setiap kali ukuran jendela berubah
                     this.fitToScreen(); 
                 },
 
@@ -937,7 +929,7 @@
                         document.body.style.userSelect = 'auto';
                         document.body.style.cursor = 'auto';
                         localStorage.setItem('agv_sidebar_width', this.startWidth); 
-                        this.fitToScreen(); 
+                        this.fitToScreen(); // Panggil fitToScreen setelah resize selesai
                     }
                 },
 
