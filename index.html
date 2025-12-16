@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Notulen AGV (Final)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        /* --- CSS PREVIEW PDF (Ukuran A4 Presisi) --- */
+        @import url('https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&display=swap');
+
+        .a4-page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 10mm 15mm;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 0 15px rgba(0,0,0,0.15);
+            font-family: 'Arimo', Arial, sans-serif;
+            font-size: 10pt;
+            color: black;
+            position: relative;
+            box-sizing: border-box;
+            page-break-after: always;
+        }
+
+        /* Styling Tabel Dokumen */
+        .doc-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .doc-table th, .doc-table td {
+            border: 1px solid black;
+            padding: 4px 6px;
+            vertical-align: top;
+        }
+        .doc-table th {
+            background-color: #f3f4f6;
+            text-align: center;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 9pt;
+        }
+
+        /* Grid Header (Kop Surat) */
+        .header-container {
+            display: grid;
+            grid-template-columns: 20% 55% 25%;
+            border-bottom: 2px solid black;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            align-items: center;
+        }
+
+        /* Menggunakan Teks/Icon untuk Logo (sesuai permintaan) */
+        .header-logo-text {
+            font-weight: bold;
+            font-size: 9pt;
+            line-height: 1.2;
+            text-align: left;
+        }
+        .header-center {
+            text-align: center;
+        }
+        .header-center h1 { font-size: 11pt; font-weight: bold; margin: 0; }
+        .header-center h2 { font-size: 10pt; font-weight: bold; margin: 0; }
+        .header-center h3 { font-size: 11pt; font-weight: bold; text-decoration: underline; margin-top: 4px; }
+
+        .header-meta table {
+            width: 100%;
+            font-size: 8pt;
+            border-collapse: collapse;
+        }
+        .header-meta td {
+            border: none;
+            padding: 1px 2px;
+        }
+        .header-meta tr td:first-child { font-weight: bold; width: 60px; }
+
+        /* Kotak Info Rapat */
+        .info-section {
+            display: table;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .info-row { display: table-row; }
+        .info-label { display: table-cell; width: 100px; font-weight: normal; padding: 2px 0; }
+        .info-sep { display: table-cell; width: 10px; padding: 2px 0; }
+        .info-val { display: table-cell; font-weight: normal; padding: 2px 0; }
+
+        /* Tanda Tangan */
+        .footer-sign {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            padding: 0 30px;
+            page-break-inside: avoid;
+        }
+        .sign-box {
+            text-align: center;
+            width: 200px;
+        }
+        .sign-gap { height: 60px; }
+        .sign-name { font-weight: bold; text-decoration: underline; }
+
+        /* Utilitas Tampilan */
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+
+<body class="bg-gray-800 h-screen overflow-hidden text-gray-800" x-data="appData()" x-init="initData()">
+
+    <div class="flex h-full">
+        
+        <div class="w-full md:w-1/3 lg:w-3/12 bg-white h-full flex flex-col shadow-2xl z-20 border-r border-gray-700">
+            <div class="p-4 bg-gray-900 text-white shadow-md flex justify-between items-center shrink-0">
+                <h1 class="font-bold text-lg tracking-wide">Notulen AGV</h1>
+                <div class="flex space-x-2">
+                    <label for="importFile" class="bg-yellow-600 hover:bg-yellow-500 text-white p-2 rounded shadow transition cursor-pointer" title="Import Data">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                        <input type="file" id="importFile" @change="importData" class="hidden" accept=".json">
+                    </label>
+
+                    <button @click="exportData" class="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded shadow transition" title="Export Draft">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                    </button>
+                    
+                    <button @click="generatePDF" class="bg-red-600 hover:bg-red-500 text-white p-2 rounded shadow transition" title="Download PDF">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 space-y-6 bg-gray-50">
+
+                <div class="bg-white p-3 rounded shadow-sm border border-gray-200">
+                    <h3 class="font-bold text-gray-700 text-sm mb-3 border-b pb-1">Info Dokumen</h3>
+                    <div class="grid grid-cols-1 gap-2">
+                        <div><label class="text-xs text-gray-500">No. Dokumen</label><input x-model="doc.no" class="w-full border p-1 rounded text-sm"></div>
+                        <div><label class="text-xs text-gray-500">Tgl Berlaku</label><input x-model="doc.tgl" class="w-full border p-1 rounded text-sm"></div>
+                        <div><label class="text-xs text-gray-500">Revisi</label><input x-model="doc.rev" class="w-full border p-1 rounded text-sm"></div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-3 rounded shadow-sm border border-gray-200">
+                    <h3 class="font-bold text-gray-700 text-sm mb-3 border-b pb-1">Detail Rapat</h3>
+                    <div class="space-y-2">
+                        <div><label class="text-xs text-gray-500">Hari/Tanggal</label><input type="date" x-model="meet.date" class="w-full border p-1 rounded text-sm"></div>
+                        <div><label class="text-xs text-gray-500">Waktu</label><input x-model="meet.time" class="w-full border p-1 rounded text-sm" placeholder="Contoh: 20.00-22.00"></div>
+                        <div><label class="text-xs text-gray-500">Tempat</label><input x-model="meet.place" class="w-full border p-1 rounded text-sm"></div>
+                        <div><label class="text-xs text-gray-500">Agenda</label><input x-model="meet.agenda" class="w-full border p-1 rounded text-sm"></div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-3 rounded shadow-sm border border-gray-200">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-bold text-gray-700 text-sm">Pembahasan</h3>
+                        <button @click="addItem" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200 font-bold">+ Item</button>
+                    </div>
+                    <div class="space-y-3">
+                        <template x-for="(item, index) in items" :key="index">
+                            <div class="border p-2 rounded bg-gray-50 relative">
+                                <button @click="removeItem(index)" class="absolute top-1 right-1 text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
+                                <input x-model="item.topic" placeholder="Judul Pembahasan" class="w-full border-b bg-transparent p-1 text-sm font-bold mb-1 focus:outline-none">
+                                <textarea x-model="item.detail" placeholder="Detail Tindak Lanjut..." class="w-full border p-1 text-sm h-16 rounded mb-1"></textarea>
+                                <div class="flex gap-2">
+                                    <input x-model="item.pic" placeholder="PIC" class="w-1/2 border p-1 text-xs rounded">
+                                    <input type="date" x-model="item.due" placeholder="Due Date" class="w-1/2 border p-1 text-xs rounded">
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="bg-white p-3 rounded shadow-sm border border-gray-200">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-bold text-gray-700 text-sm">Daftar Hadir</h3>
+                        <button @click="addAttendee" class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 font-bold">+ Peserta</button>
+                    </div>
+                    <div class="space-y-1">
+                        <template x-for="(p, i) in attendees" :key="i">
+                            <div class="flex gap-1 items-center">
+                                <span x-text="i+1+'.'" class="text-xs w-4 text-gray-400"></span>
+                                <input x-model="p.name" placeholder="Nama" class="w-1/2 border p-1 text-xs rounded">
+                                <input x-model="p.address" placeholder="Blok/No" class="w-1/3 border p-1 text-xs rounded">
+                                <button @click="removeAttendee(i)" class="text-red-400 hover:bg-red-50 rounded px-1">&times;</button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="bg-white p-3 rounded shadow-sm border border-gray-200">
+                    <h3 class="font-bold text-gray-700 text-sm mb-2">Dokumentasi</h3>
+                    <input type="file" multiple @change="handlePhotos" class="text-xs w-full mb-2">
+                    <div class="grid grid-cols-3 gap-2">
+                        <template x-for="(photo, idx) in photos" :key="idx">
+                            <div class="relative group aspect-square">
+                                <img :src="photo" class="w-full h-full object-cover rounded border">
+                                <button @click="removePhoto(idx)" class="absolute top-0 right-0 bg-red-600 text-white w-5 h-5 flex items-center justify-center text-xs opacity-100 rounded-bl">&times;</button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="bg-white p-3 rounded shadow-sm border border-gray-200 pb-8">
+                    <h3 class="font-bold text-gray-700 text-sm mb-3 border-b pb-1">Penandatangan</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-xs font-bold text-gray-500">Ketua Paguyuban</label>
+                            <input x-model="signer.ketua" class="w-full border p-1 rounded text-sm">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-gray-500">Notulis</label>
+                            <input x-model="signer.notulis_nama" class="w-full border p-1 rounded text-sm mb-1" placeholder="Nama">
+                            <input x-model="signer.notulis_jabatan" class="w-full border p-1 rounded text-sm" placeholder="Jabatan (mis: Kominfo)">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="w-full md:w-2/3 lg:w-9/12 bg-gray-700 h-full overflow-y-auto flex justify-center p-8">
+            <div id="pdf-content">
+                
+                <div class="a4-page">
+                    <div class="header-container">
+                        <div class="header-logo-text">
+                            HARGA AHSAN<br>GREEN VILLAGE
+                        </div>
+                        <div class="header-center">
+                            <h1>PAGUYUBAN AHSANA GREEN VILLAGE</h1>
+                            <h2>KEPENGURUSAN 2024-2026</h2>
+                            <h3>NOTULEN RAPAT</h3>
+                        </div>
+                        <div class="header-meta">
+                            <table>
+                                <tr><td>No. Dok</td><td>: <span x-text="doc.no"></span></td></tr>
+                                <tr><td>Tgl. Berlaku</td><td>: <span x-text="doc.tgl"></span></td></tr>
+                                <tr><td>No. Revisi</td><td>: <span x-text="doc.rev"></span></td></tr>
+                                <tr><td>Halaman</td><td>: 1</td></tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="info-section">
+                        <div class="info-row"><div class="info-label">Hari/Tanggal</div><div class="info-sep">:</div><div class="info-val" x-text="formatDate(meet.date)"></div></div>
+                        <div class="info-row"><div class="info-label">Waktu</div><div class="info-sep">:</div><div class="info-val" x-text="meet.time"></div></div>
+                        <div class="info-row"><div class="info-label">Tempat</div><div class="info-sep">:</div><div class="info-val" x-text="meet.place"></div></div>
+                        <div class="info-row"><div class="info-label">Agenda</div><div class="info-sep">:</div><div class="info-val" x-text="meet.agenda"></div></div>
+                    </div>
+
+                    <table class="doc-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 5%">NO.</th>
+                                <th style="width: 25%">ITEM PEMBAHASAN</th>
+                                <th style="width: 40%">TINDAK LANJUT</th>
+                                <th style="width: 15%">PIC</th>
+                                <th style="width: 15%">DUE DATE</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(item, i) in items" :key="i">
+                                <tr>
+                                    <td class="text-center" x-text="i + 1"></td>
+                                    <td class="font-bold" x-text="item.topic"></td>
+                                    <td style="white-space: pre-wrap;" x-text="item.detail"></td>
+                                    <td class="text-center" x-text="item.pic"></td>
+                                    <td class="text-center" x-text="formatDate(item.due)"></td>
+                                </tr>
+                            </template>
+                            <tr x-show="items.length === 0"><td colspan="5" class="text-center text-gray-400 italic py-4">Belum ada item pembahasan</td></tr>
+                        </tbody>
+                    </table>
+
+                    <div class="footer-sign">
+                        <div class="sign-box">
+                            <p>Disetujui oleh:</p>
+                            <div class="sign-gap"></div>
+                            <p class="sign-name" x-text="signer.ketua"></p>
+                            <p>Ketua Paguyuban AGV 2024-2026</p>
+                        </div>
+                        <div class="sign-box">
+                            <p>Dibuat oleh:</p>
+                            <div class="sign-gap"></div>
+                            <p class="sign-name" x-text="signer.notulis_nama"></p>
+                            <p x-text="signer.notulis_jabatan"></p>
+                            <p>Notulis</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="a4-page">
+                    <div class="header-container">
+                        <div class="header-logo-text">
+                            HARGA AHSAN<br>GREEN VILLAGE
+                        </div>
+                        <div class="header-center">
+                            <h1>PAGUYUBAN AHSANA GREEN VILLAGE</h1>
+                            <h2>KEPENGURUSAN 2024-2026</h2>
+                            <h3>DAFTAR HADIR</h3>
+                        </div>
+                        <div class="header-meta">
+                            <table>
+                                <tr><td>No. Dok</td><td>: <span x-text="doc.no"></span></td></tr>
+                                <tr><td>Tgl. Berlaku</td><td>: <span x-text="doc.tgl"></span></td></tr>
+                                <tr><td>No. Revisi</td><td>: <span x-text="doc.rev"></span></td></tr>
+                                <tr><td>Halaman</td><td>: 2</td></tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="info-section">
+                        <div class="info-row"><div class="info-label">Hari/Tanggal</div><div class="info-sep">:</div><div class="info-val" x-text="formatDate(meet.date)"></div></div>
+                        <div class="info-row"><div class="info-label">Waktu</div><div class="info-sep">:</div><div class="info-val" x-text="meet.time"></div></div>
+                        <div class="info-row"><div class="info-label">Tempat</div><div class="info-sep">:</div><div class="info-val" x-text="meet.place"></div></div>
+                        <div class="info-row"><div class="info-label">Agenda</div><div class="info-sep">:</div><div class="info-val" x-text="meet.agenda"></div></div>
+                    </div>
+
+                    <table class="doc-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 10%">NO</th>
+                                <th style="width: 40%">NAMA</th>
+                                <th style="width: 30%">ADDRESS</th>
+                                <th style="width: 20%">KEHADIRAN</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(p, i) in attendees" :key="i">
+                                <tr>
+                                    <td class="text-center" x-text="i + 1"></td>
+                                    <td x-text="p.name"></td>
+                                    <td class="text-center" x-text="p.address"></td>
+                                    <td class="text-center">Hadir</td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+
+                    <div class="footer-sign">
+                        <div class="sign-box">
+                            <p>Disetujui oleh:</p>
+                            <div class="sign-gap"></div>
+                            <p class="sign-name" x-text="signer.ketua"></p>
+                            <p>Ketua Paguyuban AGV 2024-2026</p>
+                        </div>
+                        <div class="sign-box">
+                            <p>Dibuat oleh:</p>
+                            <div class="sign-gap"></div>
+                            <p class="sign-name" x-text="signer.notulis_nama"></p>
+                            <p x-text="signer.notulis_jabatan"></p>
+                            <p>Notulis</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="a4-page">
+                    <div class="header-container">
+                        <div class="header-logo-text">
+                            HARGA AHSAN<br>GREEN VILLAGE
+                        </div>
+                        <div class="header-center">
+                            <h1>PAGUYUBAN AHSANA GREEN VILLAGE</h1>
+                            <h2>KEPENGURUSAN 2024-2026</h2>
+                            <h3>DOKUMENTASI</h3>
+                        </div>
+                        <div class="header-meta">
+                            <table>
+                                <tr><td>No. Dok</td><td>: <span x-text="doc.no"></span></td></tr>
+                                <tr><td>Tgl. Berlaku</td><td>: <span x-text="doc.tgl"></span></td></tr>
+                                <tr><td>No. Revisi</td><td>: <span x-text="doc.rev"></span></td></tr>
+                                <tr><td>Halaman</td><td>: 3</td></tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="info-section">
+                        <div class="info-row"><div class="info-label">Hari/Tanggal</div><div class="info-sep">:</div><div class="info-val" x-text="formatDate(meet.date)"></div></div>
+                        <div class="info-row"><div class="info-label">Waktu</div><div class="info-sep">:</div><div class="info-val" x-text="meet.time"></div></div>
+                        <div class="info-row"><div class="info-label">Tempat</div><div class="info-sep">:</div><div class="info-val" x-text="meet.place"></div></div>
+                        <div class="info-row"><div class="info-label">Agenda</div><div class="info-sep">:</div><div class="info-val" x-text="meet.agenda"></div></div>
+                    </div>
+
+                    <div class="mt-6 grid grid-cols-3 gap-3">
+                        <template x-for="photo in photos">
+                            <div class="border p-1 bg-white shadow-sm aspect-video flex justify-center items-center overflow-hidden">
+                                <img :src="photo" class="w-full h-auto object-contain">
+                            </div>
+                        </template>
+                        <div x-show="photos.length === 0" class="text-gray-400 italic border border-dashed border-gray-300 w-full text-center py-10 col-span-3">
+                            Tidak ada dokumentasi.
+                        </div>
+                    </div>
+
+                    <div class="footer-sign mt-10">
+                        <div class="sign-box">
+                            <p>Disetujui oleh:</p>
+                            <div class="sign-gap"></div>
+                            <p class="sign-name" x-text="signer.ketua"></p>
+                            <p>Ketua Paguyuban AGV 2024-2026</p>
+                        </div>
+                        <div class="sign-box">
+                            <p>Dibuat oleh:</p>
+                            <div class="sign-gap"></div>
+                            <p class="sign-name" x-text="signer.notulis_nama"></p>
+                            <p x-text="signer.notulis_jabatan"></p>
+                            <p>Notulis</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function appData() {
+            return {
+                // Logo dihilangkan karena permintaan. Diganti teks.
+                doc: {
+                    no: 'F-AGV-01',
+                    tgl: '25 Februari 2024',
+                    rev: '00'
+                },
+                meet: {
+                    // Default date: YYYY-MM-DD untuk type="date"
+                    date: new Date().toISOString().split('T')[0], 
+                    time: '20.00-22.00',
+                    place: 'Bagus (C02)',
+                    agenda: 'Ngopling (Ngopi Keliling)'
+                },
+                items: [
+                    { topic: 'Pemasangan lampu penerangan', detail: '1. Kebutuhan lampu: 4 titik\n2. Lokasi: Depan Mas Tommy, Zulfy, Andy, P. Sapto', pic: 'Hanif', due: new Date().toISOString().split('T')[0] }
+                ],
+                attendees: [
+                    { name: 'Hendra', address: 'C01' },
+                ],
+                photos: [],
+                signer: {
+                    ketua: 'Imam Abu Hanifah',
+                    notulis_nama: 'Wicky',
+                    notulis_jabatan: 'Kominfo'
+                },
+
+                // --- Utility Functions ---
+
+                // Format tanggal dari YYYY-MM-DD menjadi DD/MM/YYYY
+                formatDate(dateString) {
+                    if (!dateString) return '';
+                    const parts = dateString.split('-');
+                    if (parts.length === 3) {
+                        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                    }
+                    return dateString; // Fallback
+                },
+
+                // --- Core Operations ---
+
+                addItem() { this.items.push({ topic: '', detail: '', pic: '', due: new Date().toISOString().split('T')[0] }); },
+                removeItem(i) { this.items.splice(i, 1); },
+                addAttendee() { this.attendees.push({ name: '', address: '' }); },
+                removeAttendee(i) { this.attendees.splice(i, 1); },
+
+                handlePhotos(e) {
+                    const files = e.target.files;
+                    if(!files) return;
+                    for(let i=0; i<files.length; i++){
+                        const reader = new FileReader();
+                        reader.onload = (ev) => this.photos.push(ev.target.result);
+                        reader.readAsDataURL(files[i]);
+                    }
+                },
+                removePhoto(i) { this.photos.splice(i, 1); },
+
+                // --- Storage/Draft/Import/Export ---
+
+                // Menyimpan data ke LocalStorage (seperti draft)
+                saveDraft() {
+                    const data = {
+                        doc: this.doc, meet: this.meet, items: this.items, attendees: this.attendees, signer: this.signer, photos: this.photos
+                    };
+                    try {
+                        localStorage.setItem('agv_v3_draft', JSON.stringify(data));
+                        alert('Draft (data & foto) berhasil disimpan di browser!');
+                    } catch (e) {
+                        alert('Gagal menyimpan foto. Data teks disimpan.');
+                        localStorage.setItem('agv_v3_draft', JSON.stringify({...data, photos: []}));
+                    }
+                },
+                
+                // Memuat data dari LocalStorage saat inisialisasi
+                initData() {
+                    const saved = localStorage.getItem('agv_v3_draft');
+                    if(saved) {
+                        const p = JSON.parse(saved);
+                        this.doc = p.doc || this.doc;
+                        this.meet = p.meet || this.meet;
+                        this.items = p.items || this.items;
+                        this.attendees = p.attendees || this.attendees;
+                        this.signer = p.signer || this.signer;
+                        this.photos = p.photos || []; // Load foto juga
+                    }
+                },
+                
+                // Export Data (Menggantikan Simpan Draft ke LocalStorage)
+                exportData() {
+                    this.saveDraft(); // Simpan ke local storage dulu (draft)
+
+                    const dataToExport = {
+                        doc: this.doc, meet: this.meet, items: this.items, attendees: this.attendees, signer: this.signer, photos: this.photos
+                    };
+
+                    const filename = `Export_Notulen_AGV_${this.meet.date}.json`;
+                    const jsonString = JSON.stringify(dataToExport);
+                    const blob = new Blob([jsonString], { type: 'application/json' });
+                    const href = URL.createObjectURL(blob);
+                    
+                    const link = document.createElement('a');
+                    link.href = href;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(href);
+                    alert('Data telah diexport sebagai file JSON.');
+                },
+
+                // Import Data
+                importData(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const importedData = JSON.parse(e.target.result);
+                            // Load data ke state Alpine
+                            this.doc = importedData.doc || this.doc;
+                            this.meet = importedData.meet || this.meet;
+                            this.items = importedData.items || this.items;
+                            this.attendees = importedData.attendees || this.attendees;
+                            this.signer = importedData.signer || this.signer;
+                            this.photos = importedData.photos || [];
+
+                            // Simpan ke local storage setelah import
+                            this.saveDraft(); 
+                            alert('Data berhasil diimport dan disimpan sebagai draft.');
+                        } catch (error) {
+                            alert('Gagal mengimport file. Pastikan file adalah format JSON yang benar.');
+                            console.error("Import error:", error);
+                        }
+                    };
+                    reader.readAsText(file);
+                },
+
+                // Generate PDF
+                generatePDF() {
+                    const element = document.getElementById('pdf-content');
+                    const opt = {
+                        margin:       0,
+                        filename:     `Notulen_AGV_${this.meet.date.replace(/-/g,'-')}.pdf`,
+                        image:        { type: 'jpeg', quality: 0.98 },
+                        html2canvas:  { scale: 2, useCORS: true },
+                        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    };
+                    
+                    const btn = event.target.closest('button');
+                    const originalIcon = btn.innerHTML;
+                    btn.innerHTML = '<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+                    
+                    html2pdf().set(opt).from(element).save().then(() => {
+                        btn.innerHTML = originalIcon;
+                    }).catch(error => {
+                        alert("Gagal membuat PDF: " + error);
+                        btn.innerHTML = originalIcon;
+                    });
+                }
+            }
+        }
+    </script>
+</body>
+</html>
