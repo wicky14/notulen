@@ -248,6 +248,13 @@
                 background: white !important;
             }
             
+            /* START FIX: Memaksa browser untuk mencetak background color highlight */
+            .a4-page .doc-table td span[style*="background-color"] {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            /* END FIX */
+
             /* START: Perubahan untuk Foto Dokumentasi */
             .a4-page img {
                 /* General reset: hanya enforce max-width dan display block. 
@@ -344,6 +351,8 @@
                                     @touchstart="startLongPress($event)" 
                                     @touchend="cancelLongPress()"
                                     @touchmove="cancelLongPress()"
+                                    
+                                    x-on:keydown="handleKeydown($event, index)"
                                 ></textarea>
 
                                 <div class="flex gap-2">
@@ -607,6 +616,8 @@
             </div>
         </div>
         
+        <div class="resizer hidden lg:block" x-on:mousedown="startResize($event)" x-ref="resizer"></div>
+
         <div class="bottom-bar bg-white border-t border-gray-300 shadow-2xl flex justify-around items-center">
             
             <button @click="activeTab = 'input'" 
@@ -768,6 +779,39 @@
                     this.showContextMenu = false;
                 },
                 
+                // --- NEW KEYDOWN HANDLER (FIXED) ---
+                handleKeydown(event, itemIndex) {
+                    // Pastikan yang ditekan adalah Ctrl/Cmd
+                    if (!(event.ctrlKey || event.metaKey)) return; 
+
+                    let syntax = null;
+
+                    switch (event.key.toLowerCase()) {
+                        case 'b':
+                            syntax = '**'; // Bold
+                            break;
+                        case 'i':
+                            syntax = '*';  // Italic
+                            break;
+                        case 'u':
+                            syntax = '__'; // Underline
+                            break;
+                        case 'h':
+                            syntax = '=='; // Highlight
+                            break;
+                    }
+
+                    if (syntax) {
+                        // FIX: Panggil preventDefault HANYA jika shortcut terdeteksi, 
+                        // agar input karakter normal tidak dibatalkan.
+                        event.preventDefault(); 
+                        
+                        this.activeTextarea = event.target;
+                        this.applyFormat(syntax); 
+                    }
+                },
+                // --- END NEW KEYDOWN HANDLER ---
+
                 // --- MARKDOWN RENDER FUNCTION ---
                 renderMarkdown(markdownText) {
                     if (!markdownText) return '';
