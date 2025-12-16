@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=5.0">
-    <title>Aplikasi Notulen AGV (Pinch Zoom Aktif)</title>
+    <title>Notulen AGV</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -247,7 +247,7 @@
              :class="{ 'hidden-mobile': activeTab !== 'input' && window.innerWidth < 1024 }">
             
             <div class="p-4 bg-gray-900 text-white shadow-md flex justify-between items-center shrink-0">
-                <h1 class="font-bold text-lg tracking-wide">Notulen AGV Input Form</h1>
+                <h1 class="font-bold text-lg tracking-wide">Notulen AGV</h1>
                 <div class="flex space-x-2">
                     
                     <label for="importFile" class="bg-yellow-600 hover:bg-yellow-500 text-white p-2 rounded shadow transition cursor-pointer" title="Import Data">
@@ -278,7 +278,7 @@
                 <div class="bg-white p-3 rounded shadow-sm border border-gray-200">
                     <h3 class="font-bold text-gray-700 text-sm mb-3 border-b pb-1">Detail Rapat</h3>
                     <div class="space-y-2">
-                        <div><label class="text-xs text-gray-500">Hari/Tanggal</label><input type="date" x-model="meet.date" class="w-full border p-1 rounded text-sm"></div>
+                        <div><label class="text-xs text-gray-500">Tanggal</label><input type="date" x-model="meet.date" class="w-full border p-1 rounded text-sm"></div>
                         <div><label class="text-xs text-gray-500">Waktu</label><input x-model="meet.time" class="w-full border p-1 rounded text-sm" placeholder="Contoh: 20.00-22.00"></div>
                         <div><label class="text-xs text-gray-500">Tempat</label><input x-model="meet.place" class="w-full border p-1 rounded text-sm"></div>
                         <div><label class="text-xs text-gray-500">Agenda</label><input x-model="meet.agenda" class="w-full border p-1 rounded text-sm"></div>
@@ -389,7 +389,7 @@
                     </div>
 
                     <div class="info-section">
-                        <div class="info-row"><div class="info-label">Hari/Tanggal</div><div class="info-sep">:</div><div class="info-val" x-text="formatDate(meet.date)"></div></div>
+                        <div class="info-row"><div class="info-label">Tanggal</div><div class="info-sep">:</div><div class="info-val" x-text="formatDate(meet.date)"></div></div>
                         <div class="info-row"><div class="info-label">Waktu</div><div class="info-sep">:</div><div class="info-val" x-text="meet.time"></div></div>
                         <div class="info-row"><div class="info-label">Tempat</div><div class="info-sep">:</div><div class="info-val" x-text="meet.place"></div></div>
                         <div class="info-row"><div class="info-label">Agenda</div><div class="info-sep">:</div><div class="info-val" x-text="meet.agenda"></div></div>
@@ -457,7 +457,7 @@
                     </div>
 
                     <div class="info-section">
-                        <div class="info-row"><div class="info-label">Hari/Tanggal</div><div class="info-sep">:</div><div class="info-val" x-text="formatDate(meet.date)"></div></div>
+                        <div class="info-row"><div class="info-label">Tanggal</div><div class="info-sep">:</div><div class="info-val" x-text="formatDate(meet.date)"></div></div>
                         <div class="info-row"><div class="info-label">Waktu</div><div class="info-sep">:</div><div class="info-val" x-text="meet.time"></div></div>
                         <div class="info-row"><div class="info-label">Tempat</div><div class="info-sep">:</div><div class="info-val" x-text="meet.place"></div></div>
                         <div class="info-row"><div class="info-label">Agenda</div><div class="info-sep">:</div><div class="info-val" x-text="meet.agenda"></div></div>
@@ -522,7 +522,7 @@
                     </div>
 
                     <div class="info-section">
-                        <div class="info-row"><div class="info-label">Hari/Tanggal</div><div class="info-sep">:</div><div class="info-val" x-text="formatDate(meet.date)"></div></div>
+                        <div class="info-row"><div class="info-label">Tanggal</div><div class="info-sep">:</div><div class="info-val" x-text="formatDate(meet.date)"></div></div>
                         <div class="info-row"><div class="info-label">Waktu</div><div class="info-sep">:</div><div class="info-val" x-text="meet.time"></div></div>
                         <div class="info-row"><div class="info-label">Tempat</div><div class="info-sep">:</div><div class="info-val" x-text="meet.place"></div></div>
                         <div class="info-row"><div class="info-label">Agenda</div><div class="info-sep">:</div><div class="info-val" x-text="meet.agenda"></div></div>
