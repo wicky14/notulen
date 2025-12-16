@@ -295,7 +295,15 @@
                             <div class="border p-2 rounded bg-gray-50 relative">
                                 <button @click="removeItem(index)" class="absolute top-1 right-1 text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
                                 <input x-model="item.topic" placeholder="Judul Pembahasan" class="w-full border-b bg-transparent p-1 text-sm font-bold mb-1 focus:outline-none">
-                                <textarea x-model="item.detail" placeholder="Detail Tindak Lanjut..." class="w-full border p-1 text-sm h-16 rounded mb-1"></textarea>
+                                <textarea 
+                                    x-model="item.detail" 
+                                    x-ref="detailInput"
+                                    x-init="$watch('item.detail', value => { $refs.detailInput.style.height = 'auto'; $refs.detailInput.style.height = $refs.detailInput.scrollHeight + 'px' })"
+                                    @input="$refs.detailInput.style.height = 'auto'; $refs.detailInput.style.height = $refs.detailInput.scrollHeight + 'px'"
+                                    placeholder="Detail Tindak Lanjut..." 
+                                    class="w-full border p-1 text-sm rounded mb-1 overflow-hidden"
+                                    style="min-height: 4rem; height: 4rem;" 
+                                ></textarea>
                                 <div class="flex gap-2">
                                     <input x-model="item.pic" placeholder="PIC" class="w-1/2 border p-1 text-xs rounded">
                                     <input type="date" x-model="item.due" placeholder="Due Date" class="w-1/2 border p-1 text-xs rounded">
