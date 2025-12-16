@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aplikasi Notulen AGV (Responsif HP-Friendly)</title>
+    <title>Aplikasi Notulen AGV (Zoom Control)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -15,9 +15,10 @@
         /* --- CSS PREVIEW PDF (Ukuran A4 Presisi) --- */
         @import url('https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&display=swap');
 
+        /* Lebar standar A4 di 96 DPI (210mm * 96 / 25.4) = 794px */
         .a4-page {
-            width: 210mm;
-            min-height: 297mm;
+            width: 794px; /* Didefinisikan dalam piksel untuk perhitungan zoom */
+            min-height: 1123px; /* 297mm */
             padding: 10mm 15mm;
             margin: 0 auto;
             background: white;
@@ -28,6 +29,18 @@
             position: relative;
             box-sizing: border-box;
             page-break-after: always;
+        }
+        
+        /* Kontainer Utama PDF yang akan di-scale */
+        #pdf-content {
+            transform-origin: top center; /* Penting agar scaling berpusat di atas */
+            transition: transform 0.2s ease-out; /* Animasi smooth saat zoom */
+        }
+        
+        /* Utility */
+        .page-placeholder {
+            min-height: 1123px; /* Tinggi A4 */
+            width: 794px; /* Lebar A4 */
         }
 
         /* Styling Tabel Dokumen */
@@ -129,16 +142,27 @@
                 height: 100%;
             }
             .sidebar-input {
-                width: 380px; /* Lebar Sidebar Input Tetap */
+                width: var(--sidebar-width, 380px); 
                 flex-shrink: 0;
+                overflow-y: auto; 
             }
             .content-preview {
                 flex-grow: 1;
                 overflow-y: auto;
                 padding: 1rem;
+                /* Tambahkan padding agar zoom control terlihat */
+                padding-top: 5rem; 
             }
             .bottom-bar {
-                display: none !important; /* Sembunyikan Bottom Bar */
+                display: none !important; 
+            }
+            /* Styling Resizer */
+            .resizer {
+                width: 8px;
+                cursor: ew-resize; 
+                background-color: #4b5563; 
+                flex-shrink: 0; 
+                z-index: 30; 
             }
         }
 
@@ -151,13 +175,12 @@
             }
             .sidebar-input, .content-preview {
                 width: 100%;
-                max-height: calc(100vh - 56px); /* Tinggi - Bottom Bar */
+                max-height: calc(100vh - 56px); 
                 overflow-y: auto;
-                padding-bottom: 2rem; /* Ruang agar tidak terpotong bottom bar */
+                padding-bottom: 2rem; 
                 transition: transform 0.3s ease-in-out;
             }
             
-            /* Sembunyikan/tampilkan panel menggunakan Alpine.js state */
             .sidebar-input.hidden-mobile {
                  display: none;
             }
@@ -173,15 +196,27 @@
                 z-index: 50;
                 height: 56px; 
             }
+            /* Sembunyikan Zoom Controls di Mobile */
+            .zoom-controls {
+                display: none !important;
+            }
+            /* Hapus padding top tambahan */
+            .content-preview {
+                padding-top: 1rem;
+            }
+            /* Di mobile, set lebar kembali ke mm agar tidak terlalu lebar */
+            .a4-page {
+                width: 210mm;
+                padding: 10mm 15mm;
+                box-shadow: none;
+            }
         }
         
         /* --- CSS PRINT (Cetak ke PDF/Printer) --- */
         @media print {
-            /* Sembunyikan panel input dan bottom bar */
-            .sidebar-input, .bottom-bar { 
+            .sidebar-input, .bottom-bar, .resizer, .zoom-controls { 
                 display: none !important; 
             }
-            /* Pastikan konten cetak mengambil seluruh lebar */
             .layout-container, .content-preview {
                 width: 100%;
                 max-width: none;
@@ -190,8 +225,13 @@
                 box-shadow: none;
                 overflow: visible !important;
             }
-            /* Hapus background dan shadow dari halaman pratinjau A4 */
+            /* Hapus transformasi scaling saat print */
+            #pdf-content {
+                transform: none !important;
+                margin: 0 !important;
+            }
             .a4-page {
+                width: 210mm !important;
                 box-shadow: none !important;
                 margin: 0 !important;
                 padding: 10mm 15mm !important;
@@ -204,7 +244,6 @@
                 background: white !important;
             }
             
-            /* [PENTING] Penyesuaian gambar agar tercetak */
             .a4-page img {
                 max-width: 100% !important;
                 height: auto !important;
@@ -220,11 +259,12 @@
     </style>
 </head>
 
-<body class="bg-gray-100 h-screen overflow-hidden text-gray-800" x-data="appData()" x-init="initData()">
+<body class="bg-gray-100 h-screen overflow-hidden text-gray-800" x-data="appData()" x-init="initData()" x-on:resize.window="fitToScreen()">
 
     <div class="layout-container h-full">
         
         <div class="sidebar-input bg-white h-full flex flex-col shadow-xl z-20 border-r border-gray-200"
+             x-ref="sidebar"
              :class="{ 'hidden-mobile': activeTab !== 'input' && window.innerWidth < 1024 }">
             
             <div class="p-4 bg-gray-900 text-white shadow-md flex justify-between items-center shrink-0">
@@ -333,11 +373,33 @@
                 </div>
             </div>
         </div>
+        
+        <div class="resizer hidden lg:block" x-on:mousedown="startResize($event)" x-ref="resizer"></div>
 
-        <div class="content-preview bg-gray-700 flex justify-center p-4 sm:p-8 relative"
+        <div class="content-preview bg-gray-700 flex justify-center relative"
+             x-ref="previewContainer"
              :class="{ 'hidden-mobile': activeTab !== 'preview' && window.innerWidth < 1024 }">
             
-            <div id="pdf-content">
+            <div class="zoom-controls hidden lg:flex space-x-2 p-2 bg-gray-900/90 rounded-b-lg shadow-xl absolute top-0 z-30 justify-center">
+                <button @click="adjustZoom(-0.1)" class="bg-gray-700 text-white p-2 rounded hover:bg-gray-600" title="Zoom Out (Ctrl -)">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
+                </button>
+                
+                <span x-text="`${Math.round(zoomLevel * 100)}%`" class="text-white text-lg font-bold p-2 min-w-[70px] text-center"></span>
+
+                <button @click="adjustZoom(0.1)" class="bg-gray-700 text-white p-2 rounded hover:bg-gray-600" title="Zoom In (Ctrl +)">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                </button>
+                
+                <button @click="fitToScreen" class="bg-blue-600 text-white p-2 rounded hover:bg-blue-500" title="Fit to Screen">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" /></svg>
+                </button>
+            </div>
+
+
+            <div id="pdf-content" 
+                 :style="`transform: scale(${zoomLevel}); margin-top: ${100 / zoomLevel}px; margin-bottom: ${100 / zoomLevel}px;`"
+                 class="py-4">
                 
                 <div class="a4-page">
                     <div class="header-container">
@@ -552,9 +614,17 @@
     <script>
         function appData() {
             return {
-                // 'input' untuk form di mobile, 'preview' untuk pratinjau PDF di mobile
                 activeTab: window.innerWidth < 1024 ? 'input' : 'input', 
                 
+                // State untuk Zoom
+                zoomLevel: 1.0, // Default 100%
+                A4_WIDTH_PX: 794, // Lebar A4 dalam pixel (96 DPI)
+                
+                // State untuk Resizer
+                isResizing: false,
+                startWidth: 380, // Default desktop width
+                startX: 0, 
+
                 doc: {
                     no: 'F-AGV-01',
                     tgl: '25 Februari 2024',
@@ -577,6 +647,43 @@
                     ketua: 'Imam Abu Hanifah',
                     notulis_nama: 'Wicky',
                     notulis_jabatan: 'Kominfo'
+                },
+
+                // --- Zoom Logic ---
+
+                // Hitung skala optimal agar halaman A4 pas dengan lebar kontainer pratinjau
+                fitToScreen() {
+                    if (window.innerWidth < 1024) {
+                        this.zoomLevel = 1.0; // Nonaktifkan zoom di mobile
+                        return;
+                    }
+                    
+                    const containerWidth = this.$refs.previewContainer.clientWidth;
+                    // Beri margin aman 32px (1rem kiri, 1rem kanan padding container)
+                    const availableWidth = containerWidth - 64; 
+                    
+                    // Skala = Lebar Tersedia / Lebar A4
+                    let scale = availableWidth / this.A4_WIDTH_PX;
+                    
+                    // Batasi skala minimum agar tidak terlalu kecil (misalnya min 0.5)
+                    scale = Math.max(0.5, scale);
+                    
+                    // Bulatkan ke dua desimal untuk tampilan yang lebih rapi
+                    this.zoomLevel = Math.round(scale * 100) / 100;
+                    
+                    // Simpan level zoom baru
+                    localStorage.setItem('agv_zoom_level', this.zoomLevel);
+                },
+
+                adjustZoom(delta) {
+                    let newZoom = this.zoomLevel + delta;
+                    
+                    // Batasan Zoom (Min 0.5 = 50%, Max 2.0 = 200%)
+                    if (newZoom < 0.5) newZoom = 0.5;
+                    if (newZoom > 2.0) newZoom = 2.0;
+
+                    this.zoomLevel = Math.round(newZoom * 10) / 10;
+                    localStorage.setItem('agv_zoom_level', this.zoomLevel);
                 },
 
                 // --- Utility Functions ---
@@ -650,15 +757,53 @@
                 },
                 removePhoto(i) { this.photos.splice(i, 1); },
 
-                // --- Storage/Draft/Import/Export ---
+                // --- Resizer Logic ---
+                startResize(e) {
+                    if (window.innerWidth < 1024) return; 
 
+                    this.isResizing = true;
+                    this.startX = e.clientX;
+                    this.startWidth = this.$refs.sidebar.offsetWidth; 
+
+                    document.body.style.userSelect = 'none';
+                    document.body.style.cursor = 'ew-resize'; 
+                },
+
+                stopResize() {
+                    if (this.isResizing) {
+                        this.isResizing = false;
+                        document.body.style.userSelect = 'auto';
+                        document.body.style.cursor = 'auto';
+                        localStorage.setItem('agv_sidebar_width', this.startWidth); 
+                        // Setelah resize, panggil fitToScreen lagi untuk menyesuaikan zoom
+                        this.fitToScreen(); 
+                    }
+                },
+
+                onResize(e) {
+                    if (!this.isResizing) return;
+
+                    const deltaX = e.clientX - this.startX;
+                    let newWidth = this.startWidth + deltaX;
+
+                    const minWidth = 250;
+                    const maxWidth = window.innerWidth * 0.5; // Batasi maksimal 50% lebar layar
+
+                    if (newWidth < minWidth) newWidth = minWidth;
+                    if (newWidth > maxWidth) newWidth = maxWidth;
+
+                    document.documentElement.style.setProperty('--sidebar-width', `${newWidth}px`);
+                    this.startWidth = newWidth;
+                },
+
+                // --- Storage/Draft/Import/Export & Init ---
+                
                 saveDraft() {
                     const data = {
                         doc: this.doc, meet: this.meet, items: this.items, attendees: this.attendees, signer: this.signer, photos: this.photos
                     };
                     try {
                         localStorage.setItem('agv_v3_draft', JSON.stringify(data));
-                        // alert('Draft (data & foto) berhasil disimpan di browser!'); // Nonaktifkan alert agar tidak mengganggu
                     } catch (e) {
                         console.warn('Gagal menyimpan foto. Data teks disimpan.');
                         localStorage.setItem('agv_v3_draft', JSON.stringify({...data, photos: []}));
@@ -666,6 +811,7 @@
                 },
                 
                 initData() {
+                    // Load Draft
                     const saved = localStorage.getItem('agv_v3_draft');
                     if(saved) {
                         const p = JSON.parse(saved);
@@ -676,7 +822,32 @@
                         this.signer = p.signer || this.signer;
                         this.photos = p.photos || [];
                     }
-                    // Autosave setiap kali ada perubahan pada data utama
+                    
+                    // Inisialisasi Lebar Sidebar (Desktop)
+                    const savedWidth = localStorage.getItem('agv_sidebar_width');
+                    if (savedWidth && window.innerWidth >= 1024) {
+                        this.startWidth = parseFloat(savedWidth);
+                        document.documentElement.style.setProperty('--sidebar-width', `${this.startWidth}px`);
+                    } else if (window.innerWidth >= 1024) {
+                        document.documentElement.style.setProperty('--sidebar-width', `${this.startWidth}px`);
+                    }
+                    
+                    // Inisialisasi Zoom Level (Desktop)
+                    const savedZoom = localStorage.getItem('agv_zoom_level');
+                    if (window.innerWidth >= 1024) {
+                        if (savedZoom) {
+                             this.zoomLevel = parseFloat(savedZoom);
+                        } else {
+                            // Hitung zoom optimal saat pertama kali load
+                            this.$nextTick(() => this.fitToScreen()); 
+                        }
+                    }
+
+                    // Event Listener Global untuk Resizer
+                    window.addEventListener('mousemove', (e) => this.onResize(e));
+                    window.addEventListener('mouseup', () => this.stopResize());
+                    
+                    // Autosave Watchers
                     this.$watch('doc', () => this.saveDraft(), { deep: true });
                     this.$watch('meet', () => this.saveDraft(), { deep: true });
                     this.$watch('items', () => this.saveDraft(), { deep: true });
@@ -687,16 +858,13 @@
                 
                 exportData() {
                     this.saveDraft(); 
-
                     const dataToExport = {
                         doc: this.doc, meet: this.meet, items: this.items, attendees: this.attendees, signer: this.signer, photos: this.photos
                     };
-
                     const filename = `Export_Notulen_AGV_${this.meet.date}.json`;
                     const jsonString = JSON.stringify(dataToExport);
                     const blob = new Blob([jsonString], { type: 'application/json' });
                     const href = URL.createObjectURL(blob);
-                    
                     const link = document.createElement('a');
                     link.href = href;
                     link.download = filename;
@@ -738,7 +906,6 @@
                     
                     btn.innerHTML = '<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
                     
-                    // Pastikan tab preview aktif sebelum print jika di mobile
                     if (window.innerWidth < 1024) {
                         this.activeTab = 'preview';
                     }
