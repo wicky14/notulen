@@ -2,8 +2,8 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notulen AGV</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=5.0">
+    <title>Aplikasi Notulen AGV (Pinch Zoom Aktif)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -135,7 +135,7 @@
                 flex-grow: 1;
                 overflow-y: auto;
                 padding: 1rem;
-                padding-top: 1rem; /* Kurangi padding atas karena zoom controls hilang */
+                padding-top: 1rem; 
             }
             .bottom-bar {
                 display: none !important; 
@@ -158,6 +158,8 @@
             }
             .sidebar-input, .content-preview {
                 width: 100%;
+                /* Biarkan preview container memiliki overflow-x: auto (default browser) 
+                   agar pinch zoom dan geser horizontal berfungsi */
                 max-height: calc(100vh - 56px); 
                 overflow-y: auto;
                 padding-bottom: 2rem; 
@@ -180,14 +182,13 @@
                 height: 56px; 
             }
             
-            /* Hapus override A4-page, biarkan width: 794px agar scrollable */
             .a4-page {
                 box-shadow: none;
             }
-            /* Hapus margin/transform yang tidak perlu di mobile */
+            
+            /* Penting: Hapus transform: none !important; agar scale awal diterapkan, namun tetap mengizinkan native pinch zoom */
             #pdf-content {
                 margin: 0 !important; 
-                transform: none !important;
             }
         }
         
@@ -209,7 +210,7 @@
                 margin: 0 !important;
             }
             .a4-page {
-                width: 210mm !important; /* Gunakan mm saat cetak */
+                width: 210mm !important; 
                 box-shadow: none !important;
                 margin: 0 !important;
                 padding: 10mm 15mm !important;
@@ -246,7 +247,7 @@
              :class="{ 'hidden-mobile': activeTab !== 'input' && window.innerWidth < 1024 }">
             
             <div class="p-4 bg-gray-900 text-white shadow-md flex justify-between items-center shrink-0">
-                <h1 class="font-bold text-lg tracking-wide">Notulen AGV</h1>
+                <h1 class="font-bold text-lg tracking-wide">Notulen AGV Input Form</h1>
                 <div class="flex space-x-2">
                     
                     <label for="importFile" class="bg-yellow-600 hover:bg-yellow-500 text-white p-2 rounded shadow transition cursor-pointer" title="Import Data">
@@ -277,7 +278,7 @@
                 <div class="bg-white p-3 rounded shadow-sm border border-gray-200">
                     <h3 class="font-bold text-gray-700 text-sm mb-3 border-b pb-1">Detail Rapat</h3>
                     <div class="space-y-2">
-                        <div><label class="text-xs text-gray-500">Tanggal</label><input type="date" x-model="meet.date" class="w-full border p-1 rounded text-sm"></div>
+                        <div><label class="text-xs text-gray-500">Hari/Tanggal</label><input type="date" x-model="meet.date" class="w-full border p-1 rounded text-sm"></div>
                         <div><label class="text-xs text-gray-500">Waktu</label><input x-model="meet.time" class="w-full border p-1 rounded text-sm" placeholder="Contoh: 20.00-22.00"></div>
                         <div><label class="text-xs text-gray-500">Tempat</label><input x-model="meet.place" class="w-full border p-1 rounded text-sm"></div>
                         <div><label class="text-xs text-gray-500">Agenda</label><input x-model="meet.agenda" class="w-full border p-1 rounded text-sm"></div>
@@ -359,24 +360,12 @@
              :class="{ 'hidden-mobile': activeTab !== 'preview' && window.innerWidth < 1024 }">
             
             <div class="zoom-controls hidden space-x-2 p-2 bg-gray-900/90 rounded-b-lg shadow-xl absolute top-0 z-30 justify-center">
-                <button @click="adjustZoom(-0.1)" class="bg-gray-700 text-white p-2 rounded hover:bg-gray-600" title="Zoom Out">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
-                </button>
-                
-                <span x-text="`${Math.round(zoomLevel * 100)}%`" class="text-white text-lg font-bold p-2 min-w-[70px] text-center"></span>
-
-                <button @click="adjustZoom(0.1)" class="bg-gray-700 text-white p-2 rounded hover:bg-gray-600" title="Zoom In">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
-                </button>
-                
-                <button @click="fitToScreen" class="bg-blue-600 text-white p-2 rounded hover:bg-blue-500" title="Fit to Screen">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" /></svg>
-                </button>
-            </div>
-
+                </div>
 
             <div id="pdf-content" 
-                 :style="window.innerWidth >= 1024 ? `transform: scale(${zoomLevel}); margin-top: ${100 / zoomLevel}px; margin-bottom: ${100 / zoomLevel}px;` : ''"
+                 :style="window.innerWidth >= 1024 ? 
+                     `transform: scale(${zoomLevel}); margin-top: ${100 / zoomLevel}px; margin-bottom: ${100 / zoomLevel}px;` : 
+                     `transform: scale(${zoomLevel});`"
                  class="py-4">
                 
                 <div class="a4-page">
@@ -400,7 +389,7 @@
                     </div>
 
                     <div class="info-section">
-                        <div class="info-row"><div class="info-label">Tanggal</div><div class="info-sep">:</div><div class="info-val" x-text="formatDate(meet.date)"></div></div>
+                        <div class="info-row"><div class="info-label">Hari/Tanggal</div><div class="info-sep">:</div><div class="info-val" x-text="formatDate(meet.date)"></div></div>
                         <div class="info-row"><div class="info-label">Waktu</div><div class="info-sep">:</div><div class="info-val" x-text="meet.time"></div></div>
                         <div class="info-row"><div class="info-label">Tempat</div><div class="info-sep">:</div><div class="info-val" x-text="meet.place"></div></div>
                         <div class="info-row"><div class="info-label">Agenda</div><div class="info-sep">:</div><div class="info-val" x-text="meet.agenda"></div></div>
@@ -468,7 +457,7 @@
                     </div>
 
                     <div class="info-section">
-                        <div class="info-row"><div class="info-label">Tanggal</div><div class="info-sep">:</div><div class="info-val" x-text="formatDate(meet.date)"></div></div>
+                        <div class="info-row"><div class="info-label">Hari/Tanggal</div><div class="info-sep">:</div><div class="info-val" x-text="formatDate(meet.date)"></div></div>
                         <div class="info-row"><div class="info-label">Waktu</div><div class="info-sep">:</div><div class="info-val" x-text="meet.time"></div></div>
                         <div class="info-row"><div class="info-label">Tempat</div><div class="info-sep">:</div><div class="info-val" x-text="meet.place"></div></div>
                         <div class="info-row"><div class="info-label">Agenda</div><div class="info-sep">:</div><div class="info-val" x-text="meet.agenda"></div></div>
@@ -627,28 +616,36 @@
                     notulis_jabatan: 'Kominfo'
                 },
 
-                // --- Zoom Logic (Tetap dipertahankan) ---
+                // --- Zoom Logic ---
 
-                // Hitung skala optimal. Hanya efektif di Desktop (window.innerWidth >= 1024)
+                // Hitung skala optimal.
                 fitToScreen() {
                     const isDesktop = window.innerWidth >= 1024;
                     
                     if (isDesktop) {
+                        // Desktop: Fit-to-Width ke Container Preview
                         const containerWidth = this.$refs.previewContainer.clientWidth;
-                        // Beri margin aman 32px (1rem kiri, 1rem kanan padding container)
-                        const availableWidth = containerWidth - 32; 
+                        const availableWidth = containerWidth - 32; // 1rem padding on both sides
                         
                         let scale = availableWidth / this.A4_WIDTH_PX;
-                        scale = Math.max(0.5, scale);
+                        scale = Math.max(0.5, scale); // Min zoom 50%
                         this.zoomLevel = Math.round(scale * 100) / 100;
                         localStorage.setItem('agv_zoom_level', this.zoomLevel);
                     } else {
-                        // Di Mobile/HP, reset ke skala 1.0
-                        this.zoomLevel = 1.0; 
+                        // Mobile: Optimized Fit-to-Width ke Lebar Layar
+                        const screenWidth = window.innerWidth;
+                        // content-preview memiliki padding 1rem (16px) di kiri/kanan. 
+                        const availableWidth = screenWidth - 32; 
+                        
+                        let scale = availableWidth / this.A4_WIDTH_PX;
+                        scale = Math.round(scale * 100) / 100;
+                        
+                        // Atur skala, minimum 0.5 (50%)
+                        this.zoomLevel = Math.max(0.5, scale); 
                     }
                 },
 
-                // Fungsi untuk menambah/mengurangi zoom (Logika ini tetap dipertahankan)
+                // Fungsi untuk menambah/mengurangi zoom (hanya digunakan untuk kontrol zoom manual, meskipun tombolnya hilang)
                 adjustZoom(delta) {
                     let newZoom = this.zoomLevel + delta;
                     
@@ -659,14 +656,10 @@
                     localStorage.setItem('agv_zoom_level', this.zoomLevel);
                 },
                 
-                // Menangani resize window untuk update zoom (Hanya Desktop)
+                // Menangani resize window untuk update zoom 
                 handleResize() {
-                    if (window.innerWidth >= 1024) {
-                        this.fitToScreen(); 
-                    } else {
-                        // Di mobile, pastikan zoom kembali ke 1.0 untuk panning yang mudah
-                        this.zoomLevel = 1.0;
-                    }
+                    // Panggil fitToScreen untuk semua ukuran untuk memastikan tampilan optimal
+                    this.fitToScreen(); 
                 },
 
                 // --- Utility Functions ---
@@ -813,14 +806,13 @@
                     }
                     
                     const savedZoom = localStorage.getItem('agv_zoom_level');
-                    if (savedZoom) {
+                    if (savedZoom && window.innerWidth >= 1024) {
                          this.zoomLevel = parseFloat(savedZoom);
                     } 
                     
-                    // Jika Desktop, atur zoom ke FitToScreen
-                    if (window.innerWidth >= 1024) {
-                        this.$nextTick(() => this.fitToScreen()); 
-                    }
+                    // Panggil fitToScreen untuk mengatur zoom awal yang optimal (Fit-to-Width)
+                    this.$nextTick(() => this.fitToScreen()); 
+
 
                     // Event Listener Global untuk Resizer
                     window.addEventListener('mousemove', (e) => this.onResize(e));
