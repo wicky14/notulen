@@ -186,7 +186,8 @@
                    agar pinch zoom dan geser horizontal berfungsi */
                 max-height: calc(100vh - 56px); 
                 overflow-y: auto;
-                padding-bottom: 2rem; 
+                /* --- START MODIFIKASI: HAPUS padding-bottom: 2rem; --- */
+                /* padding-bottom: 2rem; */ 
                 transition: transform 0.3s ease-in-out;
             }
             
@@ -298,8 +299,8 @@
                 </div>
             </div>
 
-            <div class="flex-1 overflow-y-auto p-4 space-y-6 bg-gray-50">
-                <div class="bg-white p-3 rounded shadow-sm border border-gray-200">
+            <div class="flex-1 overflow-y-auto pt-4 px-4 pb-24 space-y-6 bg-gray-50">
+            <div class="bg-white p-3 rounded shadow-sm border border-gray-200">
                     <h3 class="font-bold text-gray-700 text-sm mb-3 border-b pb-1">Info Dokumen</h3>
                     <div class="grid grid-cols-1 gap-2">
                         <div><label class="text-xs text-gray-500">No. Dokumen</label><input x-model="doc.no" class="w-full border p-1 rounded text-sm"></div>
