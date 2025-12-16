@@ -223,12 +223,21 @@
                 background: white !important;
             }
             
+            /* START: Perubahan untuk Foto Dokumentasi */
             .a4-page img {
+                /* General reset: hanya enforce max-width dan display block. 
+                   Properti height dan object-fit akan diatur oleh class atau aturan spesifik. */
                 max-width: 100% !important;
-                height: auto !important;
                 display: block !important;
-                object-fit: initial !important; 
             }
+
+            /* Aturan spesifik untuk Foto Dokumentasi (di dalam div dengan aspect-square) */
+            .a4-page .aspect-square img {
+                height: 100% !important;
+                object-fit: cover !important;
+            }
+            /* END: Perubahan untuk Foto Dokumentasi */
+
 
             @page {
                 size: A4;
@@ -295,6 +304,7 @@
                             <div class="border p-2 rounded bg-gray-50 relative">
                                 <button @click="removeItem(index)" class="absolute top-1 right-1 text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
                                 <input x-model="item.topic" placeholder="Judul Pembahasan" class="w-full border-b bg-transparent p-1 text-sm font-bold mb-1 focus:outline-none">
+                                
                                 <textarea 
                                     x-model="item.detail" 
                                     x-ref="detailInput"
@@ -304,6 +314,7 @@
                                     class="w-full border p-1 text-sm rounded mb-1 overflow-hidden"
                                     style="min-height: 4rem; height: 4rem;" 
                                 ></textarea>
+
                                 <div class="flex gap-2">
                                     <input x-model="item.pic" placeholder="PIC" class="w-1/2 border p-1 text-xs rounded">
                                     <input type="date" x-model="item.due" placeholder="Due Date" class="w-1/2 border p-1 text-xs rounded">
@@ -538,8 +549,8 @@
 
                     <div class="mt-6 grid grid-cols-3 gap-3">
                         <template x-for="photo in photos">
-                            <div class="border p-1 bg-white shadow-sm aspect-video flex justify-center items-center overflow-hidden">
-                                <img :src="photo" class="w-full h-auto object-contain">
+                            <div class="border p-1 bg-white shadow-sm aspect-square flex justify-center items-center overflow-hidden">
+                                <img :src="photo" class="w-full h-full object-cover">
                             </div>
                         </template>
                         <div x-show="photos.length === 0" class="text-gray-400 italic border border-dashed border-gray-300 w-full text-center py-10 col-span-3">
